@@ -1,6 +1,9 @@
 class Recipe < ApplicationRecord
   after_save :set_content, if: -> { saved_change_to_name? || saved_change_to_ingredients? }
 
+  has_one_attached :photo
+
+
   def content
     if super.blank?
       set_content
@@ -24,5 +27,20 @@ class Recipe < ApplicationRecord
     update(content: new_content)
 
     return new_content
+  end
+
+
+  def set_photo
+    client = OpenAI::Client.new
+    response = client.images.generate(parameters: {
+      prompt: "A recipe image of #{name}", size: "256x256"
+    })
+
+    url = url = response["data"][0]["url"]
+    file =  URI.parse(url).open
+
+    photo.purge if photo.attached?
+    photo.attach(io: file, filename: "#{name}.png", content_type: "image/png")
+    return photo
   end
 end
